@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>工程ピックアップ</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Hiragino Sans','Meiryo',sans-serif; background: #f0f2f5; color: #1a1a2e; font-size: 14px; }
+
+header { background: #1a1a2e; color: #fff; padding: 14px 20px; display: flex; align-items: center; gap: 10px; }
+header h1 { font-size: 17px; font-weight: 700; }
+header span { font-size: 11px; color: #8892b0; margin-left: 8px; }
+
+.container { max-width: 1200px; margin: 0 auto; padding: 20px 14px; }
+
+.card { background: #fff; border-radius: 10px; padding: 18px; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+.card h2 { font-size: 11px; font-weight: 700; color: #8892b0; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 12px; border-bottom: 1px solid #eee; padding-bottom: 8px; }
+
+/* アップロード */
+.upload-area { border: 2px dashed #c8d0e0; border-radius: 8px; padding: 24px; text-align: center; cursor: pointer; transition: all .2s; }
+.upload-area:hover, .upload-area.drag { border-color: #3d6be4; background: #f0f4ff; }
+.upload-area .icon { font-size: 32px; }
+.upload-area p { color: #666; font-size: 13px; margin-top: 6px; }
+#fileInput { display: none; }
+
+.file-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.file-pill {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;
+  cursor: default;
+}
+.file-pill .rm { cursor: pointer; opacity: .6; }
+.file-pill .rm:hover { opacity: 1; }
+
+/* チップ */
+.section-label { font-size: 11px; color: #999; margin-bottom: 5px; margin-top: 10px; font-weight: 600; }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
+.chip { padding: 4px 11px; border-radius: 14px; border: 1.5px solid #d0d5e0; font-size: 12px; cursor: pointer; transition: all .15s; background: #fff; color: #444; }
+.chip:hover:not(.active) { border-color: #3d6be4; color: #3d6be4; }
+.chip.active { background: #1a1a2e; border-color: #1a1a2e; color: #fff; }
+.chip.cat-head { font-weight: 700; font-size: 11px; background: #f0f2f5; border-color: #c0c8d8; color: #555; cursor: default; }
+.chip.cat-head:hover { border-color: #c0c8d8; color: #555; }
+
+.filter-cols { display: flex; gap: 20px; flex-wrap: wrap; }
+.filter-col { flex: 1; min-width: 220px; }
+
+/* 手動入力 */
+.mg { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 6px; align-items: end; margin-bottom: 8px; }
+.mg input { width: 100%; padding: 7px 9px; border: 1.5px solid #c8d0e0; border-radius: 6px; font-size: 12px; font-family: inherit; }
+.mg input:focus { outline: none; border-color: #3d6be4; }
+.manual-item { display: flex; align-items: center; gap: 8px; padding: 5px 10px; background: #fffbf0; border-radius: 6px; border-left: 3px solid #f5a623; font-size: 12px; margin-top: 5px; }
+.manual-item .rm { margin-left: auto; cursor: pointer; color: #e05; }
+
+/* ボタン */
+.btn { padding: 8px 18px; border-radius: 7px; border: none; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; transition: all .15s; }
+.btn-primary { background: #1a1a2e; color: #fff; }
+.btn-primary:hover { background: #2d2d4e; }
+.btn-primary:disabled { background: #aaa; cursor: not-allowed; }
+.btn-print { background: #1e7e34; color: #fff; }
+.btn-print:hover { background: #155724; }
+.btn-sm { padding: 5px 12px; font-size: 12px; }
+.btn-outline { background: #fff; color: #333; border: 1.5px solid #ccc; }
+.btn-outline:hover { background: #f5f5f5; }
+.action-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+/* 表 */
+#tableWrap { overflow-x: auto; }
+table { border-collapse: collapse; font-size: 11px; min-width: 100%; }
+th, td { border: 1px solid #dde3f0; padding: 5px 7px; white-space: nowrap; }
+thead th { background: #1a1a2e; color: #fff; font-weight: 700; text-align: center; }
+.th-sub { font-size: 10px; color: #8892b0; font-weight: 400; }
+tbody tr:hover { background: #f8f9fc; }
+.td-site { font-weight: 700; font-size: 11px; background: #f0f2f5 !important; min-width: 100px; vertical-align: top; }
+.td-site .site-id { font-size: 10px; color: #888; font-weight: 400; }
+.td-site .site-addr { font-size: 10px; color: #555; }
+.td-person { font-size: 11px; background: #f6f8ff !important; font-weight: 600; min-width: 70px; }
+.td-work { font-size: 11px; min-width: 90px; color: #333; }
+.td-file { font-size: 10px; min-width: 60px; text-align: center; }
+.cell-work { text-align: center; font-weight: 700; }
+.cell-sun { background: #ffe4e4 !important; color: #c00; }
+.cell-sat { background: #e8f0fe !important; color: #1a4bc4; }
+.cell-manual { border-left: 2px solid #f5a623 !important; }
+td.sun-col { background: #fff5f5; }
+td.sat-col { background: #f5f8ff; }
+
+.status { font-size: 12px; color: #666; margin-top: 10px; }
+.status strong { color: #1a1a2e; }
+
+.legend { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #555; }
+.legend-dot { width: 12px; height: 12px; border-radius: 3px; }
+
+@media print {
+  header, .card:not(#resultCard), .action-row, .legend { display: none !important; }
+  body { background: #fff; }
+  #resultCard { box-shadow: none; padding: 0; margin: 0; }
+  #resultCard h2 { display: none; }
+  table { font-size: 9px; }
+  th, td { padding: 3px 4px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <div>⚡</div>
+  <div>
+    <h1>工程ピックアップ<span>電気工事 工程管理ツール</span></h1>
+  </div>
+</header>
+
+<div class="container">
+
+<!-- ① アップロード -->
+<div class="card">
+  <h2>① Excelファイル読み込み</h2>
+  <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+    <div class="icon">📂</div>
+    <p>クリックまたはドラッグ＆ドロップ（複数ファイル対応）</p>
+    <p style="font-size:11px;color:#aaa;margin-top:3px;">.xlsx / .xls</p>
+  </div>
+  <input type="file" id="fileInput" multiple accept=".xlsx,.xls">
+  <div class="file-pills" id="filePills"></div>
+</div>
+
+<!-- ② フィルター -->
+<div class="card" id="filterCard" style="display:none">
+  <h2>② 担当者・工程を選択</h2>
+  <div class="filter-cols">
+    <div class="filter-col">
+      <div class="section-label">担当者（複数選択可）</div>
+      <div class="chips" id="personChips"></div>
+    </div>
+    <div class="filter-col">
+      <div class="section-label">工程カテゴリ（複数選択可）</div>
+      <div id="workCategories"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ③ 手動入力 -->
+<div class="card">
+  <h2>③ 手動入力（メール・電話情報）</h2>
+  <div class="mg">
+    <input type="text" id="mSite" placeholder="現場名（例: 川崎市多摩区）">
+    <input type="text" id="mPerson" placeholder="担当者">
+    <input type="text" id="mWork" placeholder="工程（例: 電気器具付け）">
+    <input type="text" id="mDate" placeholder="日程（例: 4/3〜4/7）">
+    <button class="btn btn-outline btn-sm" onclick="addManual()">追加</button>
+  </div>
+  <div id="manualList"></div>
+</div>
+
+<!-- ④ 生成 -->
+<div class="card">
+  <h2>④ 表を生成・出力</h2>
+  <div class="action-row">
+    <button class="btn btn-primary" onclick="buildTable()">表を生成する</button>
+    <button class="btn btn-print" onclick="window.print()">🖨 印刷 / PDF保存</button>
+  </div>
+  <div class="status" id="statusBar"></div>
+</div>
+
+<!-- ⑤ 結果 -->
+<div class="card" id="resultCard" style="display:none">
+  <h2>⑤ 工程ピックアップ表</h2>
+  <div class="legend" id="legend"></div>
+  <div id="tableWrap"></div>
+</div>
+
+</div>
+
+<script>
+// ============================================================
+// 設定
+// ============================================================
+const FILE_COLORS = [
+  { bg: '#e8f4fd', text: '#1a5276', border: '#2980b9' },
+  { bg: '#fef9e7', text: '#7d6608', border: '#f1c40f' },
+  { bg: '#fdf2f8', text: '#76448a', border: '#8e44ad' },
+  { bg: '#e9f7ef', text: '#1e8449', border: '#27ae60' },
+  { bg: '#fef5e7', text: '#784212', border: '#e67e22' },
+  { bg: '#eaf2ff', text: '#154360', border: '#2e86c1' },
+];
+
+const WORK_CATEGORIES = {
+  '器具付け':     ['電気器具付け','照明器具付け','冷暖・ＨＡ器具付け','ガス器具付け','水道器具付け','太器','水器'],
+  'クリーニング': ['クリーニング','再クリーニング'],
+  '電気工事':     ['内部電気','外部電気','電気準備','電気間仕切配線','アンテナ取付','ＨＥＭＳ設定','ＥＶ工事'],
+  'ガス工事':     ['内部ガス','ガス準備','ガス外部配管','ガス間仕切配管','給ガ'],
+  '水道工事':     ['内水','内部水道','水道準備','水道外部配管','水道間仕切配管'],
+  '冷暖工事':     ['内部冷暖','冷暖準備','冷暖間仕切'],
+  'シーリング':   ['シーリング','内部シーリング','外部目地'],
+  '足場':         ['先行足場','中間足場','足場前外装','足場後外装','足場ばらし','足場ふさぎ','仮設設置','仮設撤去'],
+  '木工事':       ['木工事（メゾン）','木工事（自宅）','木工床下地','木工（下地）','木工（仕上）','木工（壁ＰＢ）','木工（天ＰＢ）'],
+  '基礎・躯体':   ['基礎本体','基礎バラシ','躯体本体','土間コン','地盤改良','界壁','スリーブ','筋R'],
+  '仕上げ':       ['クロス','カーペット','タイル工事','畳敷き','特殊内装','収納工事','吹付け','壁断熱','床下','床暖パネル'],
+  '外装':         ['仕上外構','外天','軒天','樋工事','防水','耐火','防下パネル','太陽光発電','前太','太パ'],
+  '設備・その他': ['ＵＢ','ＵＢ２','ＵＢ３','シャワーＵ','キッチン','宅配ＢＯＸ','家具設置','窓掛け','網戸サッシ調整','補修','その他工事','消防設備'],
+};
+
+// work名 → カテゴリ のマップ
+const workToCat = {};
+Object.entries(WORK_CATEGORIES).forEach(([cat, works]) => {
+  works.forEach(w => { workToCat[w] = cat; });
+});
+function getCategory(work) {
+  if (workToCat[work]) return workToCat[work];
+  // 部分一致
+  for (const [cat, works] of Object.entries(WORK_CATEGORIES)) {
+    if (works.some(w => work.includes(w) || w.includes(work))) return cat;
+  }
+  return 'その他';
+}
+
+// ============================================================
+// 状態
+// ============================================================
+let allData = [];       // { siteId, siteName, siteAddr, person, ahcPerson, work, category, dates[], source, fileIdx, manual }
+let manualData = [];
+let fileColors = {};    // filename → color obj
+let fileIdx = 0;
+let loadedFiles = {};
+let selectedPersons = new Set();
+let selectedCats = new Set();
+
+// ============================================================
+// ファイルアップロード
+// ============================================================
+const uploadArea = document.getElementById('uploadArea');
+const fileInput  = document.getElementById('fileInput');
+uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('drag'); });
+uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('drag'));
+uploadArea.addEventListener('drop', e => { e.preventDefault(); uploadArea.classList.remove('drag'); handleFiles(e.dataTransfer.files); });
+fileInput.addEventListener('change', e => handleFiles(e.target.files));
+
+function handleFiles(files) {
+  Array.from(files).forEach(f => {
+    if (loadedFiles[f.name]) return;
+    const col = FILE_COLORS[fileIdx % FILE_COLORS.length];
+    fileColors[f.name] = col;
+    fileIdx++;
+    loadedFiles[f.name] = true;
+    addFilePill(f.name, col);
+    readExcel(f);
+  });
+}
+
+function addFilePill(name, col) {
+  const p = document.createElement('div');
+  p.className = 'file-pill';
+  p.id = 'pill_' + name;
+  p.style.cssText = `background:${col.bg};color:${col.text};border:1.5px solid ${col.border}`;
+  p.innerHTML = `<span>📄 ${name}</span><span class="rm" onclick="removeFile('${name}')">✕</span>`;
+  document.getElementById('filePills').appendChild(p);
+}
+
+function removeFile(name) {
+  delete loadedFiles[name];
+  delete fileColors[name];
+  document.getElementById('pill_' + name)?.remove();
+  allData = allData.filter(d => d.source !== name);
+  refreshFilters();
+}
+
+// ============================================================
+// Excel解析
+// ============================================================
+function readExcel(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'binary', cellStyles: true });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      parseSheet(ws, file.name);
+    } catch(err) {
+      console.error(err);
+      alert(file.name + ' の読み込みに失敗しました');
+    }
+  };
+  reader.readAsBinaryString(file);
+}
+
+function parseSheet(ws, filename) {
+  if (!ws || !ws['!ref']) return;
+  const range = XLSX.utils.decode_range(ws['!ref']);
+
+  // --- 日付ヘッダー行を探す ---
+  let dateRow = -1;
+  for (let r = 0; r <= Math.min(20, range.e.r); r++) {
+    let cnt = 0;
+    for (let c = 17; c <= Math.min(17+120, range.e.c); c++) {
+      const cell = ws[XLSX.utils.encode_cell({r, c})];
+      if (cell && (cell.v instanceof Date || (typeof cell.v === 'number' && cell.v > 40000 && cell.t === 'n'))) cnt++;
+    }
+    if (cnt > 5) { dateRow = r; break; }
+  }
+
+  const colDateMap = {}; // col → { label, dow, date }
+  if (dateRow >= 0) {
+    const dowRow = dateRow + 1;
+    for (let c = 17; c <= range.e.c; c++) {
+      const dc = ws[XLSX.utils.encode_cell({r: dateRow, c})];
+      const wc = ws[XLSX.utils.encode_cell({r: dowRow, c})];
+      if (!dc) continue;
+      let d;
+      if (dc.v instanceof Date) d = dc.v;
+      else if (typeof dc.v === 'number' && dc.v > 40000) {
+        d = new Date(Math.round((dc.v - 25569) * 86400 * 1000));
+      }
+      if (d) {
+        const mm = d.getMonth() + 1, dd = d.getDate();
+        const dow = wc ? String(wc.v) : '';
+        colDateMap[c] = { label: `${mm}/${dd}`, dow, date: new Date(d) };
+      }
+    }
+  }
+
+  // --- 現場ブロック検出 ---
+  // B列に担当者名が入っており、K列に色がついている行が現場メイン行
+  // 現場ブロック: K列の橙色（FFED7D31）等で担当者別に識別済み
+  // 各現場は連続する5行セット: RN番号/物件番号/建設会社/AHC事業所/着工日
+
+  // まず全行のB列と各行の工程セルを走査
+  // 現場メイン行 = K列に値があり、その値が担当者名（漢字含む）の行
+  const siteBlocks = []; // { startRow, endRow, siteId, siteName, siteAddr, ahcPerson, person }
+
+  let r = 10;
+  while (r <= range.e.r) {
+    const bCell = ws[XLSX.utils.encode_cell({r, c: 1})];
+    if (!bCell || !bCell.v) { r++; continue; }
+    const person = String(bCell.v).trim();
+    if (!person || person.length < 2) { r++; continue; }
+
+    // K列に担当者っぽい値があるか
+    const kCell = ws[XLSX.utils.encode_cell({r, c: 10})];
+    if (kCell && kCell.v) {
+      const kv = String(kCell.v).trim();
+      // RN/IDで始まる → これが現場ブロックの1行目(siteId行)
+      if (/^(RN|ID)\d+/.test(kv) || /^[A-Z]{2}\d+/.test(String(ws[XLSX.utils.encode_cell({r, c: 9})]?.v || ''))) {
+        // J列にID, K列に担当者名のパターン
+        const jv = String(ws[XLSX.utils.encode_cell({r, c: 9})]?.v || '').trim();
+        // ブロックの各行を読む
+        const siteId  = jv;                          // RN40116等
+        const ahcPerson = kv;                        // K行1: 担当者名
+        const siteAddr = String(ws[XLSX.utils.encode_cell({r: r+1, c: 10})]?.v || '').trim(); // K行2: 住所
+        const siteName = siteAddr || siteId;
+
+        // 工程行の範囲（現場ブロック終わりまで）
+        let endRow = r;
+        for (let rr = r; rr <= Math.min(r + 40, range.e.r); rr++) {
+          const b2 = ws[XLSX.utils.encode_cell({r: rr, c: 1})];
+          if (b2 && b2.v && String(b2.v).trim() !== person) break;
+          endRow = rr;
+        }
+
+        siteBlocks.push({ startRow: r, endRow, siteId, siteName, siteAddr, ahcPerson, person });
+        r = endRow + 1;
+        continue;
+      }
+    }
+    r++;
+  }
+
+  // --- 各ブロックから工程を抽出 ---
+  siteBlocks.forEach(block => {
+    const seen = new Set(); // 重複防止 work+startCol
+    for (let r = block.startRow; r <= block.endRow; r++) {
+      for (let c = 17; c <= range.e.c; c++) {
+        const cell = ws[XLSX.utils.encode_cell({r, c})];
+        if (!cell || !cell.v) continue;
+        let val = String(cell.v).replace(/^="?/, '').replace(/"$/, '').trim();
+        if (!val || !val.includes('_')) continue;
+
+        // 工程名抽出
+        const parts = val.split('_');
+        const work = parts[0].trim();
+
+        // 不要なものを除外: 数字のみ、1文字以下、英数字のみ、特殊な略語
+        if (!work || work.length < 2) continue;
+        if (/^\d+$/.test(work)) continue;
+        if (/^[A-Za-z0-9]+$/.test(work) && work.length < 4) continue;
+        if (['エ天','ク前','太パ','太器','水器','内配','内水','給ガ','足前','防レ','筋R'].includes(work)) continue;
+
+        // 色で連続する列範囲を取得
+        const bgColor = getCellBgColor(ws, r, c);
+        if (!bgColor) continue;
+
+        const dateKey = r + '_' + c;
+        if (seen.has(work + '_' + c)) continue;
+        seen.add(work + '_' + c);
+
+        const dates = [];
+        for (let cc = c; cc <= Math.min(c + 90, range.e.c); cc++) {
+          const ccol = getCellBgColor(ws, r, cc);
+          if (ccol === bgColor && colDateMap[cc]) {
+            dates.push(colDateMap[cc]);
+          } else if (cc > c + 2 && !ccol) break;
+        }
+        if (dates.length === 0) continue;
+
+        // 重複チェック（同じ現場・工程・日程）
+        const dupKey = `${block.siteId}||${work}||${dates[0].label}`;
+        if (seen.has(dupKey)) continue;
+        seen.add(dupKey);
+
+        allData.push({
+          siteId:    block.siteId,
+          siteName:  block.siteName,
+          siteAddr:  block.siteAddr,
+          person:    block.person,
+          ahcPerson: block.ahcPerson,
+          work,
+          category:  getCategory(work),
+          dates,
+          source:    filename,
+          fileIdx:   fileIdx - 1,
+          manual:    false,
+        });
+      }
+    }
+  });
+
+  refreshFilters();
+}
+
+function getCellBgColor(ws, r, c) {
+  const cell = ws[XLSX.utils.encode_cell({r, c})];
+  if (!cell || !cell.s) return null;
+  const s = cell.s;
+  const fg = s.fgColor || (s.fill && s.fill.fgColor);
+  if (!fg) return null;
+  const rgb = fg.rgb || fg.theme;
+  if (!rgb || rgb === '00000000' || rgb === 'FFFFFFFF' || rgb === 'FF000000' || rgb === 'FFF2F2F2') return null;
+  return rgb;
+}
+
+// ============================================================
+// フィルター
+// ============================================================
+function refreshFilters() {
+  const persons = [...new Set(allData.map(d => d.person).filter(Boolean))].sort();
+  const cats = [...new Set(allData.map(d => d.category).filter(Boolean))].sort();
+
+  // 担当者チップ
+  const pc = document.getElementById('personChips');
+  pc.innerHTML = '';
+  if (!persons.length) {
+    pc.innerHTML = '<span style="font-size:11px;color:#aaa">ファイルを読み込むと表示されます</span>';
+  }
+  persons.forEach(p => {
+    const chip = makeChip(p, selectedPersons, () => refreshFilters());
+    pc.appendChild(chip);
+  });
+
+  // カテゴリチップ（カテゴリ順に表示）
+  const wc = document.getElementById('workCategories');
+  wc.innerHTML = '';
+  const orderedCats = Object.keys(WORK_CATEGORIES).filter(c => cats.includes(c));
+  // 既知カテゴリ以外
+  cats.filter(c => !orderedCats.includes(c)).forEach(c => orderedCats.push(c));
+
+  orderedCats.forEach(cat => {
+    const chip = makeChip(cat, selectedCats, () => {});
+    wc.appendChild(chip);
+  });
+
+  document.getElementById('filterCard').style.display = (persons.length || cats.length) ? '' : 'none';
+}
+
+function makeChip(label, set, onChange) {
+  const chip = document.createElement('span');
+  chip.className = 'chip' + (set.has(label) ? ' active' : '');
+  chip.textContent = label;
+  chip.onclick = () => {
+    if (set.has(label)) set.delete(label); else set.add(label);
+    chip.classList.toggle('active');
+    onChange();
+  };
+  return chip;
+}
+
+// ============================================================
+// 手動入力
+// ============================================================
+function addManual() {
+  const site   = document.getElementById('mSite').value.trim();
+  const person = document.getElementById('mPerson').value.trim();
+  const work   = document.getElementById('mWork').value.trim();
+  const dateS  = document.getElementById('mDate').value.trim();
+  if (!site || !work || !dateS) { alert('現場名・工程・日程は必須です'); return; }
+  const dates = parseDateRange(dateS);
+  if (!dates.length) { alert('日程の形式: 4/3〜4/7 または 4/5'); return; }
+  manualData.push({ siteId: '', siteName: site, siteAddr: '', person, ahcPerson: person, work, category: getCategory(work), dates, source: '手動入力', manual: true });
+  renderManualList();
+  ['mSite','mPerson','mWork','mDate'].forEach(id => document.getElementById(id).value = '');
+}
+
+function parseDateRange(str) {
+  const dates = [];
+  const m = str.match(/(\d+)\/(\d+)\s*[〜~\-]\s*(\d+)\/(\d+)/);
+  const y = new Date().getFullYear();
+  if (m) {
+    const s = new Date(y, +m[1]-1, +m[2]), e = new Date(y, +m[3]-1, +m[4]);
+    for (let d = new Date(s); d <= e; d.setDate(d.getDate()+1)) {
+      dates.push({ label: `${d.getMonth()+1}/${d.getDate()}`, dow: '日月火水木金土'[d.getDay()], date: new Date(d) });
+    }
+  } else {
+    const m2 = str.match(/(\d+)\/(\d+)/);
+    if (m2) {
+      const d = new Date(y, +m2[1]-1, +m2[2]);
+      dates.push({ label: `${d.getMonth()+1}/${d.getDate()}`, dow: '日月火水木金土'[d.getDay()], date: d });
+    }
+  }
+  return dates;
+}
+
+function renderManualList() {
+  const list = document.getElementById('manualList');
+  list.innerHTML = '';
+  manualData.forEach((d, i) => {
+    const div = document.createElement('div');
+    div.className = 'manual-item';
+    div.innerHTML = `<span>📌 <b>${d.siteName}</b> ${d.person ? '/ '+d.person : ''} / ${d.work} / ${d.dates.map(x=>x.label).join(', ')}</span><span class="rm" onclick="manualData.splice(${i},1);renderManualList()">✕</span>`;
+    list.appendChild(div);
+  });
+}
+
+// ============================================================
+// 表生成
+// ============================================================
+function buildTable() {
+  let filtered = [...allData, ...manualData];
+
+  if (selectedPersons.size > 0) filtered = filtered.filter(d => selectedPersons.has(d.person));
+  if (selectedCats.size > 0)    filtered = filtered.filter(d => selectedCats.has(d.category));
+
+  if (!filtered.length) {
+    document.getElementById('statusBar').innerHTML = '⚠️ 該当データがありません。フィルターを確認してください。';
+    return;
+  }
+
+  // 重複除去（同じ現場+工程+日程）
+  const dedup = new Map();
+  filtered.forEach(d => {
+    const key = `${d.siteId||d.siteName}||${d.work}||${d.dates.map(x=>x.label).join(',')}`;
+    if (!dedup.has(key)) dedup.set(key, d);
+  });
+  filtered = [...dedup.values()];
+
+  // 日付収集
+  const dateSet = {};
+  filtered.forEach(d => d.dates.forEach(dt => {
+    dateSet[dt.date.getTime()] = dt;
+  }));
+  const sortedDates = Object.entries(dateSet)
+    .sort((a,b) => +a[0] - +b[0])
+    .map(x => x[1]);
+
+  // 現場グループ（siteId+person でユニーク）
+  const siteMap = new Map();
+  filtered.forEach(d => {
+    const key = (d.siteId || d.siteName) + '||' + d.person;
+    if (!siteMap.has(key)) siteMap.set(key, { ...d, entries: [] });
+    siteMap.get(key).entries.push(d);
+  });
+
+  // テーブル構築
+  const wrap = document.getElementById('tableWrap');
+  const tbl = document.createElement('table');
+
+  // ヘッダー月行
+  const monthMap = {};
+  sortedDates.forEach(dt => {
+    const m = dt.label.split('/')[0] + '月';
+    monthMap[m] = (monthMap[m] || 0) + 1;
+  });
+
+  const thead = tbl.createTHead();
+
+  // 月行
+  const mRow = thead.insertRow();
+  ['現場','担当者','工程','ファイル'].forEach((t,i) => {
+    const th = document.createElement('th');
+    th.textContent = t;
+    th.rowSpan = 3;
+    if (i === 0) th.style.minWidth = '110px';
+    mRow.appendChild(th);
+  });
+  Object.entries(monthMap).forEach(([m, cnt]) => {
+    const th = document.createElement('th');
+    th.textContent = m;
+    th.colSpan = cnt;
+    mRow.appendChild(th);
+  });
+
+  // 日行
+  const dRow = thead.insertRow();
+  sortedDates.forEach(dt => {
+    const th = document.createElement('th');
+    th.textContent = dt.label.split('/')[1];
+    if (dt.dow === '日') th.style.color = '#ffaaaa';
+    if (dt.dow === '土') th.style.color = '#aabbff';
+    dRow.appendChild(th);
+  });
+
+  // 曜日行
+  const wRow = thead.insertRow();
+  sortedDates.forEach(dt => {
+    const th = document.createElement('th');
+    th.textContent = dt.dow;
+    th.className = 'th-sub';
+    if (dt.dow === '日') th.style.color = '#ffaaaa';
+    if (dt.dow === '土') th.style.color = '#aabbff';
+    wRow.appendChild(th);
+  });
+
+  // データ行
+  const tbody = tbl.createTBody();
+  siteMap.forEach((site, key) => {
+    const col = fileColors[site.source] || { bg: '#f5f5f5', text: '#333', border: '#ccc' };
+    site.entries.forEach((entry, ei) => {
+      const tr = tbody.insertRow();
+
+      // 現場列（最初の行のみ rowSpan）
+      if (ei === 0) {
+        const td = tr.insertCell();
+        td.rowSpan = site.entries.length;
+        td.className = 'td-site';
+        td.style.borderLeft = `3px solid ${col.border}`;
+        td.innerHTML = `<div>${site.siteName || site.siteId}</div>
+          ${site.siteId ? `<div class="site-id">${site.siteId}</div>` : ''}`;
+      }
+
+      // 担当者列
+      if (ei === 0) {
+        const td = tr.insertCell();
+        td.rowSpan = site.entries.length;
+        td.className = 'td-person';
+        td.innerHTML = `<div>${entry.person}</div><div class="site-id">${entry.ahcPerson !== entry.person ? entry.ahcPerson : ''}</div>`;
+      }
+
+      // 工程列
+      const tdW = tr.insertCell();
+      tdW.className = 'td-work';
+      tdW.textContent = entry.work;
+
+      // ファイル列
+      const tdF = tr.insertCell();
+      tdF.className = 'td-file';
+      if (entry.manual) {
+        tdF.innerHTML = '<span style="color:#f5a623;font-weight:700">手動</span>';
+      } else {
+        tdF.style.cssText = `background:${col.bg};color:${col.text}`;
+        tdF.textContent = entry.source.replace(/\.xlsx?$/, '').substring(0, 8);
+      }
+
+      // 日付列
+      sortedDates.forEach(dt => {
+        const td = tr.insertCell();
+        const has = entry.dates.some(ed => ed.label === dt.label);
+        if (has) {
+          td.className = 'cell-work' + (dt.dow === '日' ? ' cell-sun' : dt.dow === '土' ? ' cell-sat' : '');
+          if (entry.manual) td.className += ' cell-manual';
+          td.style.cssText = `background:${col.bg};color:${col.text}`;
+          td.textContent = '●';
+        } else {
+          if (dt.dow === '日') td.style.background = '#fff5f5';
+          else if (dt.dow === '土') td.style.background = '#f5f8ff';
+        }
+      });
+    });
+  });
+
+  wrap.innerHTML = '';
+  wrap.appendChild(tbl);
+
+  // 凡例
+  const legend = document.getElementById('legend');
+  legend.innerHTML = '<span style="font-size:11px;font-weight:700;color:#555">ファイル凡例：</span>';
+  Object.entries(fileColors).forEach(([fname, col]) => {
+    const item = document.createElement('div');
+    item.className = 'legend-item';
+    item.innerHTML = `<div class="legend-dot" style="background:${col.bg};border:1.5px solid ${col.border}"></div><span style="color:${col.text}">${fname}</span>`;
+    legend.appendChild(item);
+  });
+  if (manualData.length) {
+    const item = document.createElement('div');
+    item.className = 'legend-item';
+    item.innerHTML = `<div class="legend-dot" style="background:#fffbf0;border:1.5px solid #f5a623"></div><span style="color:#f5a623">手動入力</span>`;
+    legend.appendChild(item);
+  }
+
+  document.getElementById('resultCard').style.display = '';
+  document.getElementById('statusBar').innerHTML =
+    `<strong>${[...siteMap.values()].reduce((s,v)=>s+v.entries.length,0)}件</strong> の工程 / <strong>${siteMap.size}現場</strong>`;
+  document.getElementById('resultCard').scrollIntoView({ behavior: 'smooth' });
+}
+</script>
+</body>
+</html>
